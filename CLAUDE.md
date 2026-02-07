@@ -64,6 +64,35 @@
 
 ---
 
+### 媒體來源管理
+**策略**：支援多個資料夾作為媒體來源，透過 .env 動態配置
+
+**架構設計**：
+```yaml
+# Docker 層：mount 整個 /volume1 (read-only)
+volumes:
+  - /volume1:/app/nas:ro
+  - /volume1/transcoded:/app/transcoded  # 轉碼輸出（可寫）
+
+# 應用層：讀取 .env 中的資料夾列表
+MEDIA_SOURCES=/volume1/media/videos,/volume1/downloads/movies,/volume1/family/photos
+```
+
+**為什麼這樣設計**：
+- Docker 配置簡單穩定（不需頻繁修改）
+- .env 修改後只需**重啟 server**（不需重啟 container）
+- 支援無限數量資料夾
+- read-only mount 防止誤刪
+
+**應用層職責**：
+- 啟動時掃描 `MEDIA_SOURCES` 列出的資料夾
+- 建立檔案索引到資料庫（記錄完整路徑）
+- 支援手動觸發重新掃描
+- 定時自動掃描新檔案（可選）
+- 排除特定模式（如 `@eaDir`, `node_modules`）
+
+---
+
 ## 環境設定
 
 ### NAS
@@ -74,7 +103,8 @@
 - **記憶體**：10GB 總計
   - Ramdisk: 6GB (60%)
   - 系統 + Docker: 4GB (40%)
-- **路徑**：`/volume1/media/`（按類型分類）
+- **媒體來源**：多資料夾（透過 .env 配置）
+  - 範例：`/volume1/media/`, `/volume1/downloads/`, `/volume1/family/`
 
 ### Ramdisk 分配（6GB）
 - Redis: 500MB
