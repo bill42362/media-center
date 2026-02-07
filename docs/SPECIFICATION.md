@@ -76,7 +76,7 @@
 * 使用 node.js 為主要開發語言
 * 伺服器和 DB 跑在 NAS 上的 docker 中，要善用 ramdisk 來保護硬碟
 * 影片 (VOD) 要支援 AES-128 加密的 hls 串流，並且要透過登入的 cookie 來取得解密的 key
-* 透過 ffmpeg 來支援 faststart，GOP 2 secs，並且使用合理的 bitrate，預設解析度 1080p
+* 透過 ffmpeg 來支援 faststart，ABR，GOP 2 secs，並且使用合理的 bitrate，預設解析度 1080p
 * 影片 `加到最愛` 時，將其轉碼進兵切片存於 NAS 中，未加入最愛之影片則只儲存近期觀看的 64 部之切片
 
 ## ComfyUI 伺服器
