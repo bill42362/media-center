@@ -136,6 +136,44 @@ MEDIA_SOURCES=/volume1/media/videos,/volume1/downloads/movies,/volume1/family/ph
 
 ---
 
+### 多使用者權限管理
+**策略**：支援 2-3 個使用者，透過 Email 白名單 + 角色分級
+
+**使用者配置**：
+```bash
+# .env
+ADMIN_EMAIL=you@gmail.com
+ALLOWED_EMAILS=friend@gmail.com,family@gmail.com
+USER_FAVORITES_LIMIT=100
+```
+
+**權限分級**：
+
+| 功能 | 管理員 | 一般使用者 |
+|------|--------|-----------|
+| 安全模式切換 | ✅ | ❌（永遠 SFW） |
+| 上傳影片/圖片 | ✅ | ❌ |
+| 編輯標籤 | ✅ | ❌ |
+| 瀏覽內容 | ✅ 全部 | ✅ 僅 SFW |
+| 最愛列表 | ✅ 無限制 | ✅ 限制數量 |
+| 觀看進度 | ✅ | ✅ |
+| 播放影片 | ✅ | ✅ |
+
+**資料庫影響**：
+- `users` 表：加入 `role` 欄位（'admin' 或 'user'）
+- `favorites` 表：改為多對多（支援個人最愛列表）
+- `watch_progress` 表：記錄個人觀看進度
+- `sessions` 表：記錄使用者的安全模式狀態
+
+**為什麼這樣設計**：
+- 簡單實用：適合家人/朋友共用
+- Email 白名單：不需要註冊介面
+- 角色自動分配：首次登入時根據 Email 決定
+- 保護內容：一般使用者無法看到 NSFW 內容
+- 防止濫用：限制最愛數量、禁止上傳
+
+---
+
 ## 環境設定
 
 ### NAS
