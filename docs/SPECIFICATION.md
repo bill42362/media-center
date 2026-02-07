@@ -42,12 +42,15 @@
 | **UPS** | APC Back-UPS NS 650M1 | 停電保護、狀態監控 |
 
 ### 網路架構
-- **網域**：`media.bill42362.net`（AWS Route53 管理）
-- **SSL**：Cloudflare Universal SSL
-- **安全連線**：採用 Cloudflare Tunnel（零信任架構）
-  - 不需要開放任何 Router Port
-  - 隱藏 NAS 真實 IP
-  - 免費 DDoS 防護
+- **區網訪問**：`http://192.168.50.100:8080`（Caddy 統一入口）
+- **反向代理**：Caddy
+  - `/` → Media Center (port 3000)
+  - `/comfyui` → ComfyUI (未來)
+  - `/grafana` → Grafana (未來)
+- **未來公網**（可選）：
+  - Cloudflare Tunnel（零信任架構）
+  - 不開放任何 Router Port
+  - 自動 HTTPS
 
 ### 儲存規劃
 - **媒體檔案**：`/volume1/media/`（按類型分類：videos/, images/, articles/）
@@ -259,12 +262,12 @@
 - **API**：GraphQL (Apollo Server)
 - **資料庫**：PostgreSQL
 - **快取**：Redis
-- **反向代理**：Caddy
-- **網路安全**：Cloudflare Tunnel
+- **反向代理**：Caddy（HTTP，統一入口）
 
 **選擇理由**：
-- Caddy：配置極簡，與 Cloudflare Tunnel 完美整合
-- Cloudflare Tunnel：零信任架構，不開放任何 port，最安全
+- Caddy：配置極簡，統一管理多服務入口
+- 區網優先：專注核心功能開發，簡化架構
+- 未來擴展：加入 Cloudflare Tunnel 即可上公網
 
 #### 影片轉碼
 - **工具**：FFmpeg
@@ -284,16 +287,18 @@
 ## 安全性要求
 
 ### 網路層安全
-- **Cloudflare Tunnel**：
-  - 不開放任何 Router Port
-  - 所有流量經過 Cloudflare CDN
-  - 自動 DDoS 防護
-  - 零信任架構
+- **區網階段**：
+  - HTTP 訪問（不開放任何 Router Port）
+  - 僅區網內裝置可訪問
+- **未來公網階段**（可選）：
+  - Cloudflare Tunnel（零信任架構）
+  - 自動 HTTPS
+  - DDoS 防護
 
 ### 應用層安全
 - **認證**：Email OTP + Session Cookie
 - **授權**：JWT token 驗證
-- **加密**：HTTPS + HLS AES-128
+- **加密**：HLS AES-128
 - **CORS**：限制允許的來源
 - **Rate Limiting**：防止暴力破解和濫用
 - **檔案上傳限制**：
@@ -335,12 +340,11 @@
 
 ## 開發階段
 
-### 第一階段：基礎架構 + 影片功能（優先）
+### 第一階段：核心功能（區網測試）
 
 **環境準備**：
 - NAS Ramdisk 設定（6GB）
-- Cloudflare Tunnel 設定
-- AWS Route53 DNS 設定
+- Caddy 安裝與設定（HTTP）
 - Gmail App Password 生成
 
 **核心功能**：
@@ -349,14 +353,13 @@
 - 安全模式切換
 - 影片上傳
 - 影片播放（HLS + AES-128）
-- 轉碼服務（FFmpeg + 佇列）
+- 轉碼服務（FFmpeg + Bull Queue）
 - 最愛功能
 - 標籤系統（CRUD + 搜尋）
 
 **部署**：
-- Caddy 反向代理
-- Cloudflare Tunnel 啟動
-- HTTPS 連線測試
+- Caddy 反向代理（HTTP，port 8080）
+- 區網訪問測試：`http://192.168.50.100:8080`
 
 ---
 
@@ -396,11 +399,22 @@
 
 ---
 
+### 第六階段：公網訪問（可選）
+
+- Cloudflare Tunnel 設定
+- AWS Route53 DNS 設定
+- Caddy 啟用 HTTPS
+- 網域：`media.bill42362.net`
+- 連線測試
+
+---
+
 ## 附註
 
 ### 使用場景
 - **個人使用**：簡化權限系統，無需複雜的多使用者管理
-- **私人網路**：透過 Cloudflare Tunnel 安全訪問，無需 VPN
+- **區網訪問**：透過 Caddy 統一入口，HTTP 訪問
+- **未來公網**（可選）：透過 Cloudflare Tunnel 安全訪問，無需 VPN
 
 ### 擴展性考量
 - 影片數量可擴展到數萬部
