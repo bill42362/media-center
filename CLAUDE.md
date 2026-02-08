@@ -274,13 +274,18 @@ USER_FAVORITES_LIMIT=100
    - 最愛功能
    - 轉碼服務（FFmpeg + Bull Queue）
 
-2. **第二階段**：WebAuthn + 圖片功能
+2. **第二階段**：Grafana 監控
+   - Telegraf + InfluxDB + Grafana 建置
+   - NAS 資源監控（使用現成 Synology Dashboard）
+   - Desktop 資源監控（GPU/CPU/RAM）
+   - UPS 監控整合（NUT）
+   - 資料降採樣設定
 
-3. **第三階段**：文章功能
+3. **第三階段**：WebAuthn + 圖片功能
 
-4. **第四階段**：ComfyUI 整合
+4. **第四階段**：文章功能
 
-5. **第五階段**：Grafana 監控
+5. **第五階段**：ComfyUI 整合
 
 6. **第六階段**：公網訪問（可選）
    - Cloudflare Tunnel 設定

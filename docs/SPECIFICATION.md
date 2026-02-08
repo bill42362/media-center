@@ -404,15 +404,25 @@
 
 ---
 
-### 7. Grafana 監控（第五階段）
+### 7. Grafana 監控（第二階段）
 
 #### 監控項目
-1. **Desktop 資源監控**：
+
+1. **NAS 資源監控**（Synology DS420+）：
+   - CPU 使用率、溫度
+   - RAM 使用情況（總計 10GB，含 Ramdisk 6GB）
+   - 硬碟使用情況、I/O 效能
+   - 網路流量（上傳/下載）
+   - Docker 容器狀態
+   - 使用現成的 Synology Dashboard
+
+2. **Desktop 資源監控**：
    - CPU 溫度、使用率
    - GPU 負載、溫度、記憶體使用
    - RAM、硬碟使用情況
+   - 轉碼任務負載
 
-2. **UPS 狀態監控**：
+3. **UPS 狀態監控**：
    - 電池電量、負載
    - 輸入/輸出電壓
    - 預估可用時間
@@ -575,7 +585,25 @@
 
 ---
 
-### 第二階段：WebAuthn + 圖片功能
+### 第二階段：Grafana 監控
+
+- Telegraf + InfluxDB + Grafana 建置（部署在 NAS）
+- 資料降採樣設定（30天/1年/5年）
+- **NAS 資源監控**：
+  - 使用 Telegraf 收集系統資源
+  - 匯入現成的 Synology Dashboard（Grafana 社群）
+  - 監控 CPU、RAM、Disk I/O、Network、Docker
+- **Desktop 資源監控**：
+  - 使用 Telegraf 收集 GPU/CPU 資料
+  - 自訂 Dashboard 或使用社群範本
+- **UPS 監控整合**：
+  - 透過 NUT (Network UPS Tools)
+  - 使用現成的 UPS Dashboard
+- Dashboard 備份與版本控制
+
+---
+
+### 第三階段：WebAuthn + 圖片功能
 
 - WebAuthn 認證（解鎖非安全模式）
 - 圖片上傳與瀏覽
@@ -584,7 +612,7 @@
 
 ---
 
-### 第三階段：文章功能
+### 第四階段：文章功能
 
 - 文章上傳與閱讀
 - Markdown 編輯器（即時預覽）
@@ -593,21 +621,11 @@
 
 ---
 
-### 第四階段：ComfyUI 整合
+### 第五階段：ComfyUI 整合
 
 - ComfyUI 伺服器建置（Desktop WSL2）
 - 模型上傳功能
 - 產出內容同步到媒體庫
-
----
-
-### 第五階段：Grafana 監控
-
-- Telegraf + InfluxDB + Grafana 建置
-- 資料降採樣設定（30天/1年/5年）
-- Desktop 資源監控 Dashboard
-- UPS 監控整合
-- Dashboard 備份
 
 ---
 
