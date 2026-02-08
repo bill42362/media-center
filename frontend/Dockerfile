@@ -1,6 +1,6 @@
 # Production Dockerfile for Frontend
 
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -12,15 +12,27 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# Production: serve static files with nginx
-FROM nginx:alpine
+# Production: minimal HTTP server
+FROM node:24-alpine
 
-# Copy built static files
-COPY --from=builder /app/dist /usr/share/nginx/html
+WORKDIR /app
 
-# Nginx will be configured via Caddy reverse proxy
-# No need for custom nginx.conf
+# Install serve package globally (lightweight static file server)
+RUN npm install -g serve
 
-EXPOSE 80
+# Copy built static files from builder
+COPY --from=builder /app/dist ./dist
 
-CMD ["nginx", "-g", "daemon off;"]
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001 && \
+    chown -R nodejs:nodejs /app
+
+USER nodejs
+
+EXPOSE 3000
+
+# Serve static files with SPA fallback
+# -s: SPA mode (fallback to index.html)
+# -l: listen port
+CMD ["serve", "-s", "dist", "-l", "3000"]

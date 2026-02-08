@@ -14,11 +14,9 @@
         format json
     }
 
-    # Frontend - React SPA
+    # Frontend - React SPA (reverse proxy to frontend container)
     handle /* {
-        root * /srv/frontend
-        try_files {path} /index.html
-        file_server
+        reverse_proxy frontend:3000
     }
 
     # Backend GraphQL API

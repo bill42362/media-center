@@ -1,0 +1,45 @@
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+build
+.next
+out
+
+# Cache
+.cache
+.turbo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.local
+.env.development
+.env.production
+
+# Docker
+Dockerfile
+docker-compose*.yml
+
+# Generated files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Prisma generated
+**/prisma/generated
+
+# Coverage
+coverage
+*.lcov
+
+# Other
+.DS_Store
+*.swp
+*.swo

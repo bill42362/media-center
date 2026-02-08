@@ -51,6 +51,8 @@ function LoginPage() {
             ]}
           >
             <Input
+              type="email"
+              autoComplete="email"
               prefix={<MailOutlined />}
               placeholder="your-email@example.com"
               size="large"

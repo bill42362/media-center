@@ -57,9 +57,13 @@ function OTPPage() {
             rules={[
               { required: true, message: '請輸入驗證碼' },
               { len: 6, message: '驗證碼為 6 位數字' },
+              { pattern: /^\d{6}$/, message: '驗證碼必須為 6 位數字' },
             ]}
           >
             <Input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
               prefix={<LockOutlined />}
               placeholder="123456"
               size="large"
