@@ -275,11 +275,12 @@ USER_FAVORITES_LIMIT=100
    - 轉碼服務（FFmpeg + Bull Queue）
 
 2. **第二階段**：Grafana 監控
-   - Telegraf + InfluxDB + Grafana 建置
+   - 全部署在 NAS（24/7 可用性 + 統一管理）
+   - 記憶體優化（InfluxDB 256MB + Grafana 128MB）
    - NAS 資源監控（使用現成 Synology Dashboard）
-   - Desktop 資源監控（GPU/CPU/RAM）
+   - Desktop 資源監控（Telegraf 推送，GPU/CPU/RAM）
    - UPS 監控整合（NUT）
-   - 資料降採樣設定
+   - 資料降採樣設定（30天/1年/5年）
 
 3. **第三階段**：WebAuthn + 圖片功能
 

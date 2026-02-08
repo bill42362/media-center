@@ -406,6 +406,12 @@
 
 ### 7. Grafana 監控（第二階段）
 
+#### 部署位置
+- **伺服器位置**：NAS（24/7 運作，統一管理）
+- **資料收集**：
+  - NAS：Telegraf 本地收集
+  - Desktop：Telegraf 遠端推送到 NAS 的 InfluxDB
+
 #### 監控項目
 
 1. **NAS 資源監控**（Synology DS420+）：
@@ -414,18 +420,41 @@
    - 硬碟使用情況、I/O 效能
    - 網路流量（上傳/下載）
    - Docker 容器狀態
-   - 使用現成的 Synology Dashboard
+   - 使用現成的 Synology Dashboard（Grafana ID: 928, 5955）
 
 2. **Desktop 資源監控**：
    - CPU 溫度、使用率
    - GPU 負載、溫度、記憶體使用
    - RAM、硬碟使用情況
    - 轉碼任務負載
+   - 使用現成的 Docker Dashboard（Grafana ID: 193）
 
 3. **UPS 狀態監控**：
    - 電池電量、負載
    - 輸入/輸出電壓
    - 預估可用時間
+   - 透過 NUT (Network UPS Tools) 整合
+
+#### 記憶體優化策略
+考量 NAS 總記憶體 10GB（6GB Ramdisk + 4GB 系統），採用以下優化：
+
+- **Docker 記憶體限制**：
+  - InfluxDB: 256MB
+  - Grafana: 128MB
+  - Telegraf: 無需限制（記憶體佔用極小）
+
+- **設定優化**：
+  - 使用輕量化配置
+  - 優先使用社群現成 Dashboard（減少複雜查詢）
+  - WAL 寫入 Ramdisk，資料持久化到磁碟
+
+- **降採樣策略**：
+  - 減少長期資料儲存量
+  - 降低查詢負載
+
+- **備用方案**：
+  - 若記憶體仍不足，可將 Ramdisk 從 6GB 降至 5GB
+  - 避免在轉碼高峰期查詢 Grafana
 
 #### 資料保留策略
 - **原始資料**（10 秒採樣）：保留 30 天
@@ -587,15 +616,22 @@
 
 ### 第二階段：Grafana 監控
 
-- Telegraf + InfluxDB + Grafana 建置（部署在 NAS）
+**部署架構**：
+- 全部署在 NAS（24/7 監控，統一管理）
+- Desktop 透過 Telegraf 推送資料到 NAS
+
+**實作項目**：
+- Telegraf + InfluxDB + Grafana 建置
+- Docker 記憶體限制設定（InfluxDB: 256MB, Grafana: 128MB）
 - 資料降採樣設定（30天/1年/5年）
 - **NAS 資源監控**：
   - 使用 Telegraf 收集系統資源
-  - 匯入現成的 Synology Dashboard（Grafana 社群）
-  - 監控 CPU、RAM、Disk I/O、Network、Docker
+  - 匯入現成的 Synology Dashboard（Grafana ID: 928, 5955）
+  - 監控 CPU、RAM（含 Ramdisk）、Disk I/O、Network、Docker
 - **Desktop 資源監控**：
   - 使用 Telegraf 收集 GPU/CPU 資料
-  - 自訂 Dashboard 或使用社群範本
+  - 匯入現成的 Docker Dashboard（Grafana ID: 193）
+  - 監控 GPU 負載、溫度、VRAM
 - **UPS 監控整合**：
   - 透過 NUT (Network UPS Tools)
   - 使用現成的 UPS Dashboard
