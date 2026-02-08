@@ -358,37 +358,114 @@
 
 ## 資料表關聯圖
 
-```
-┌─────────┐
-│  users  │──┐
-└─────────┘  │
-     │       │
-     ├───────┼───────────┐
-     │       │           │
-     ▼       ▼           ▼
-┌──────────┐ ┌──────────────┐ ┌─────────┐
-│ sessions │ │   favorites  │ │  watch  │
-└──────────┘ └──────────────┘ │progress │
-                    │          └─────────┘
-                    │               │
-                    ▼               │
-              ┌─────────┐           │
-              │  media  │◄──────────┤
-              └─────────┘           │
-                    │               │
-         ┌──────────┼──────────┐    │
-         │          │          │    │
-         ▼          ▼          ▼    ▼
-  ┌────────────┐ ┌──────────────┐ ┌──────────────┐ ┌─────────┐
-  │ media_tags │ │ transcode    │ │ transcode    │ │  watch  │
-  └────────────┘ │    jobs      │ │   cache      │ │ history │
-         │       └──────────────┘ └──────────────┘ └─────────┘
-         ▼                                               ▲
-    ┌──────┐                                             │
-    │ tags │                                             │
-    └──────┘                                             │
-                                                         │
-                                              users ─────┘
+```mermaid
+erDiagram
+    users ||--o{ sessions : "has"
+    users ||--o{ favorites : "has"
+    users ||--o{ watch_progress : "tracks"
+    users ||--o{ watch_history : "records"
+
+    media ||--o{ favorites : "favorited_by"
+    media ||--o{ watch_progress : "tracks"
+    media ||--o{ watch_history : "watched_by"
+    media ||--o{ transcode_jobs : "has"
+    media ||--o{ transcode_cache : "cached_as"
+    media ||--o{ media_tags : "tagged_with"
+
+    tags ||--o{ media_tags : "used_in"
+
+    users {
+        uuid id PK
+        string email UK
+        string display_name
+        enum role
+        boolean safe_mode_only
+        timestamp created_at
+    }
+
+    sessions {
+        uuid id PK
+        uuid user_id FK
+        string token UK
+        timestamp expires_at
+        timestamp created_at
+    }
+
+    media {
+        uuid id PK
+        enum type
+        string title
+        string file_path UK
+        bigint file_size
+        int duration
+        boolean transcoded
+        string transcoded_path
+        enum transcode_status
+        timestamp created_at
+    }
+
+    tags {
+        uuid id PK
+        string namespace
+        string value
+        timestamp created_at
+    }
+
+    media_tags {
+        uuid media_id FK
+        uuid tag_id FK
+        timestamp assigned_at
+    }
+
+    favorites {
+        uuid id PK
+        uuid user_id FK
+        uuid media_id FK
+        timestamp created_at
+    }
+
+    watch_progress {
+        uuid id PK
+        uuid user_id FK
+        uuid media_id FK
+        int progress_seconds
+        boolean completed
+        timestamp updated_at
+    }
+
+    watch_history {
+        uuid id PK
+        uuid user_id FK
+        uuid media_id FK
+        timestamp started_at
+        timestamp ended_at
+        int watched_duration
+        int start_position
+        int end_position
+        boolean completed
+        timestamp created_at
+    }
+
+    transcode_jobs {
+        uuid id PK
+        uuid media_id FK
+        enum resolution
+        enum priority
+        enum status
+        int progress
+        timestamp started_at
+        timestamp completed_at
+    }
+
+    transcode_cache {
+        uuid id PK
+        uuid media_id FK
+        enum resolution
+        string cache_path
+        bigint size_bytes
+        timestamp last_accessed_at
+        timestamp created_at
+    }
 ```
 
 ---
