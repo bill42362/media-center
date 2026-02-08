@@ -44,7 +44,7 @@
 - **Redis** (快取與 Session)
 - **Bull Queue** (轉碼任務佇列)
 - **FFmpeg** (影片轉碼)
-- **Caddy** (反向代理)
+- **Caddy** (統一入口、自動 HTTPS)
 
 ### 部署
 - **Docker Compose** (服務編排)
@@ -185,8 +185,12 @@ SMTP_PASS=your_gmail_app_password
 ADMIN_EMAIL=admin@example.com
 ALLOWED_EMAILS=friend@example.com,family@example.com
 
-# Media Paths (on NAS)
-MEDIA_SOURCE_PATH=/volume1/media
+# Media Sources (支援多個資料夾，逗號分隔)
+VIDEO_SOURCES=/volume1/media/videos,/volume1/downloads/movies,/volume1/family/videos
+IMAGE_SOURCES=/volume1/media/images,/volume1/downloads/images,/volume1/family/photos
+ARTICLE_SOURCES=/volume1/media/articles,/volume1/documents
+
+# Transcode & Cache Paths
 TRANSCODED_PATH=/volume1/transcoded
 CACHE_PATH=/ramdisk/cache
 RAMDISK_SIZE=6G
@@ -208,7 +212,9 @@ CACHE_MAX_VIDEOS=64
 | `SMTP_PASS` | Gmail 應用程式密碼 | `abcd efgh ijkl mnop` |
 | `ADMIN_EMAIL` | 管理員 Email | `admin@example.com` |
 | `ALLOWED_EMAILS` | 允許登入的使用者 Email（逗號分隔） | `user1@example.com,user2@example.com` |
-| `MEDIA_SOURCE_PATH` | 媒體檔案來源路徑 | `/volume1/media` |
+| `VIDEO_SOURCES` | 影片來源資料夾（逗號分隔，支援多個） | `/volume1/media/videos,/volume1/downloads` |
+| `IMAGE_SOURCES` | 圖片來源資料夾（逗號分隔，支援多個） | `/volume1/media/images,/volume1/family/photos` |
+| `ARTICLE_SOURCES` | 文章來源資料夾（逗號分隔，支援多個） | `/volume1/media/articles` |
 | `CACHE_MAX_VIDEOS` | Ramdisk 最多快取影片數量 | `64` |
 
 **取得 Gmail 應用程式密碼**：
@@ -225,11 +231,26 @@ CACHE_MAX_VIDEOS=64
 #### 3.1 建立必要目錄
 
 ```bash
+# 建立轉碼輸出目錄
 mkdir -p /volume1/transcoded
+
+# 建立媒體來源目錄（根據你的 VIDEO_SOURCES 設定）
+# 範例 1：單一來源
 mkdir -p /volume1/media/videos
 mkdir -p /volume1/media/images
 mkdir -p /volume1/media/articles
+
+# 範例 2：多個來源
+mkdir -p /volume1/media/videos
+mkdir -p /volume1/downloads/movies
+mkdir -p /volume1/family/videos
+mkdir -p /volume1/family/photos
 ```
+
+**說明**：
+- 系統會掃描 `VIDEO_SOURCES`、`IMAGE_SOURCES`、`ARTICLE_SOURCES` 中列出的所有資料夾
+- 可以隨時在 `.env` 中新增資料夾，重啟服務後生效
+- 建議將不同來源的媒體分開放置，方便管理
 
 #### 3.2 啟動 Docker Compose
 
@@ -345,8 +366,8 @@ media-center/
 │   ├── src/
 │   └── package.json
 │
-├── nginx/                       # Nginx 設定
-│   └── nginx.conf
+├── caddy/                       # Caddy 設定
+│   └── Caddyfile
 │
 └── scripts/                     # 工具腳本
     ├── setup-ramdisk.sh
