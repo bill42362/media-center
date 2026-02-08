@@ -21,14 +21,15 @@
 
 | 資料表 | 用途 | 關聯 |
 |--------|------|------|
-| `users` | 使用者帳號 | → sessions, favorites, watch_progress |
+| `users` | 使用者帳號 | → sessions, favorites, watch_progress, watch_history |
 | `sessions` | 登入 session | users ← |
 | `otps` | OTP 驗證碼 | 獨立（短期資料） |
-| `media` | 媒體檔案 | → media_tags, favorites, watch_progress, transcode_jobs |
+| `media` | 媒體檔案 | → media_tags, favorites, watch_progress, watch_history, transcode_jobs |
 | `tags` | 標籤 | → media_tags |
 | `media_tags` | 媒體-標籤關聯 | media ←, tags ← |
 | `favorites` | 最愛列表 | users ←, media ← |
-| `watch_progress` | 觀看進度 | users ←, media ← |
+| `watch_progress` | 觀看進度（斷點續播） | users ←, media ← |
+| `watch_history` | 觀看紀錄（歷史分析） | users ←, media ← |
 | `transcode_jobs` | 轉碼任務 | media ← |
 | `transcode_cache` | Ramdisk 快取記錄 | media ← |
 
@@ -247,7 +248,60 @@
 
 ---
 
-### 9. transcode_jobs（轉碼任務）
+### 9. watch_history（觀看紀錄）
+
+**用途**：記錄每次觀看的歷史（用於分析和查詢）
+
+**關鍵欄位**：
+- `id` (UUID, PK)
+- `user_id` (UUID, FK → users)
+- `media_id` (UUID, FK → media, type = VIDEO)
+- **觀看時間**：
+  - `started_at` (DateTime) - 開始觀看時間
+  - `ended_at` (DateTime?) - 結束觀看時間
+- **觀看時長**：
+  - `watched_duration` (Int, Default: 0) - 實際觀看時長（秒）
+  - `start_position` (Int, Default: 0) - 從第幾秒開始播
+  - `end_position` (Int?) - 播到第幾秒
+- `completed` (Boolean, Default: false) - 是否看完
+- **來源資訊**（可選）：
+  - `source` (String?) - 來源平台（'web', 'mobile'）
+  - `ip_address` (String?) - IP 位址
+  - `user_agent` (Text?) - User Agent
+- `created_at` (DateTime)
+
+**索引**：
+- `user_id` + `started_at DESC` - 查詢使用者的觀看歷程
+- `media_id` + `started_at DESC` - 查詢影片的觀看記錄
+- `user_id` + `media_id` + `started_at DESC` - 特定使用者對特定影片的觀看記錄
+
+**設計考量**：
+- 每次播放開始時創建一筆新記錄（不覆蓋）
+- 與 `watch_progress` 分離：
+  - `watch_progress` - 狀態表（最新進度，用於斷點續播）
+  - `watch_history` - 歷史表（所有觀看記錄，用於分析）
+- 播放結束時更新 `ended_at` 和最終統計數據
+- `watched_duration` 可能小於 `ended_at - started_at`（使用者暫停、快轉）
+- 可用於分析：
+  - 觀看習慣（哪個時段最常看）
+  - 熱門影片排行
+  - 使用者觀看歷程追溯
+- 定期清理：建議保留 1 年，舊資料可封存或刪除
+
+**與 watch_progress 的協作**：
+```
+播放開始 → 創建 watch_history 記錄
+         → 查詢 watch_progress 取得斷點位置
+
+播放中   → 定期更新 watch_history (watched_duration, end_position)
+
+播放結束 → 更新 watch_history (ended_at, completed)
+         → 更新/創建 watch_progress（用於下次斷點續播）
+```
+
+---
+
+### 10. transcode_jobs（轉碼任務）
 
 **用途**：記錄轉碼任務狀態
 
@@ -277,7 +331,7 @@
 
 ---
 
-### 10. transcode_cache（轉碼快取記錄）
+### 11. transcode_cache（轉碼快取記錄）
 
 **用途**：管理 Ramdisk 快取（LRU 策略）
 
@@ -309,9 +363,9 @@
 │  users  │──┐
 └─────────┘  │
      │       │
-     ├───────┼─────────┐
-     │       │         │
-     ▼       ▼         ▼
+     ├───────┼───────────┐
+     │       │           │
+     ▼       ▼           ▼
 ┌──────────┐ ┌──────────────┐ ┌─────────┐
 │ sessions │ │   favorites  │ │  watch  │
 └──────────┘ └──────────────┘ │progress │
@@ -319,19 +373,22 @@
                     │               │
                     ▼               │
               ┌─────────┐           │
-              │  media  │◄──────────┘
-              └─────────┘
-                    │
-         ┌──────────┼──────────┐
-         ▼          ▼           ▼
-  ┌────────────┐ ┌──────────────┐ ┌──────────────┐
-  │ media_tags │ │ transcode    │ │ transcode    │
-  └────────────┘ │    jobs      │ │   cache      │
-         │       └──────────────┘ └──────────────┘
-         ▼
-    ┌──────┐
-    │ tags │
-    └──────┘
+              │  media  │◄──────────┤
+              └─────────┘           │
+                    │               │
+         ┌──────────┼──────────┐    │
+         │          │          │    │
+         ▼          ▼          ▼    ▼
+  ┌────────────┐ ┌──────────────┐ ┌──────────────┐ ┌─────────┐
+  │ media_tags │ │ transcode    │ │ transcode    │ │  watch  │
+  └────────────┘ │    jobs      │ │   cache      │ │ history │
+         │       └──────────────┘ └──────────────┘ └─────────┘
+         ▼                                               ▲
+    ┌──────┐                                             │
+    │ tags │                                             │
+    └──────┘                                             │
+                                                         │
+                                              users ─────┘
 ```
 
 ---
@@ -357,10 +414,14 @@
    - `favorites.user_id`
    - `watch_progress.user_id` + `watch_progress.completed`
 
-5. **轉碼佇列**：
+5. **觀看紀錄查詢**：
+   - `watch_history.user_id` + `watch_history.started_at` - 使用者觀看歷程
+   - `watch_history.media_id` + `watch_history.started_at` - 影片觀看記錄
+
+6. **轉碼佇列**：
    - `transcode_jobs.status` + `transcode_jobs.priority`
 
-6. **LRU 快取**：
+7. **LRU 快取**：
    - `transcode_cache.last_accessed_at` - 按時間排序
 
 ### 複合索引建議
