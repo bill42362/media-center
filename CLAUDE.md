@@ -295,6 +295,52 @@ USER_FAVORITES_LIMIT=100
 
 ---
 
+## 開發環境設定
+
+### 筆電開發環境（前端工程師友善）
+
+**架構**：
+```
+筆電 (docker-compose.dev.yml)
+├─ frontend (Vite dev server, port 5173)
+│  └─ Hot reload, mount source code
+├─ backend (nodemon, port 3000)
+│  └─ Hot reload, mount source code
+└─ 連接 NAS 服務（區網）
+   ├─ PostgreSQL (192.168.50.100:5432)
+   ├─ Redis (192.168.50.100:6379)
+   └─ 媒體檔案 (SMB/NFS mount, read-only)
+```
+
+**啟動方式**：
+```bash
+# 使用開發環境 Compose 檔案
+docker-compose -f docker-compose.dev.yml up
+
+# 前端：http://localhost:5173 (Vite HMR)
+# 後端：http://localhost:3000 (nodemon auto-reload)
+# GraphQL：http://localhost:3000/graphql
+```
+
+**環境變數**：
+- 使用 `.env.development` (不進 git)
+- `DATABASE_URL=postgresql://user:pass@192.168.50.100:5432/media_center`
+- `REDIS_URL=redis://192.168.50.100:6379`
+
+**NAS 前置設定**：
+- PostgreSQL 允許區網連接（修改 `pg_hba.conf`）
+- Redis 允許區網連接（修改 `redis.conf`）
+- 媒體檔案透過 SMB/NFS 掛載到筆電（read-only）
+
+**優點**：
+- ✅ 前端修改立即生效（Vite HMR）
+- ✅ 後端修改自動重啟（nodemon）
+- ✅ 使用真實資料（共用線上 DB）
+- ✅ 不需要在筆電跑資料庫
+- ✅ 輕量、快速啟動
+
+---
+
 ## 重要提醒
 
 ### 安全性
@@ -321,7 +367,7 @@ USER_FAVORITES_LIMIT=100
 - 媒體檔案：重要內容手動備份
 - 設定檔：Git 版本控制
 
-### 開發流程
-1. 第一階段：區網內使用 Caddy + HTTP
-2. 功能穩定後可選擇性上公網
-3. 區網 → 公網升級時只需加 Cloudflare Tunnel
+### 部署流程
+1. **開發階段**：筆電使用 `docker-compose.dev.yml`
+2. **測試階段**：NAS 區網內使用 Caddy + HTTP
+3. **上線階段**：可選擇性加入 Cloudflare Tunnel
