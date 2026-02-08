@@ -252,27 +252,91 @@ mkdir -p /volume1/family/photos
 - 可以隨時在 `.env` 中新增資料夾，重啟服務後生效
 - 建議將不同來源的媒體分開放置，方便管理
 
-#### 3.2 啟動 Docker Compose
+#### 3.2 使用 Synology Container Manager
+
+本專案完全相容 Synology NAS 內建的 **Container Manager** 應用程式，你可以選擇使用 GUI 或 CLI 來管理服務。
+
+**Docker Compose 版本說明**：
+- Synology Container Manager 使用 Docker Compose v2
+- 指令格式：`docker compose`（空格分隔，而非 `docker-compose` 連字號）
+- 如果你習慣使用 `docker-compose` 指令，可以建立別名：
+  ```bash
+  alias docker-compose='docker compose'
+  ```
+
+##### 方法一：使用 Container Manager GUI（適合初學者）
+
+1. **開啟 Container Manager**
+   - 在 Synology DSM 中打開「Container Manager」應用程式
+   - 左側選單選擇「專案」(Project)
+
+2. **建立新專案**
+   - 點擊「新增」→「從 Docker Compose 建立」
+   - 專案名稱：`media-center`
+   - 路徑：選擇專案根目錄（包含 `docker-compose.yml` 的資料夾）
+   - 來源：選擇「上傳 docker-compose.yml」或「使用現有路徑」
+
+3. **設定環境變數**
+   - 在「環境」頁籤中設定環境變數（或使用 `.env` 檔案）
+   - Container Manager 會自動讀取專案目錄中的 `.env` 檔案
+
+4. **啟動專案**
+   - 點擊「建置」等待映像建置完成
+   - 建置完成後點擊「啟動」
+
+5. **查看服務狀態**
+   - 在「容器」頁面查看所有運行中的容器
+   - 點擊容器名稱可查看日誌、資源使用情況
+
+##### 方法二：使用 SSH + CLI（推薦，功能完整）
+
+透過 SSH 登入 NAS 後執行：
 
 ```bash
-# 建置並啟動所有服務
-docker-compose up -d
+# 進入專案目錄
+cd /volume1/your-project-path/media-center
+
+# 建置並啟動所有服務（Docker Compose v2 語法）
+docker compose up -d
 
 # 查看服務狀態
-docker-compose ps
+docker compose ps
 
 # 查看日誌
-docker-compose logs -f backend
+docker compose logs -f backend
+
+# 重啟特定服務
+docker compose restart backend
+
+# 停止所有服務
+docker compose down
+
+# 停止並刪除資料卷（危險操作！）
+docker compose down -v
 ```
+
+**日常管理**：
+
+| 操作 | GUI 方式 | CLI 方式 |
+|------|---------|---------|
+| 查看日誌 | 容器 → 點擊容器 → 日誌 | `docker compose logs -f [service]` |
+| 重啟服務 | 容器 → 選擇容器 → 動作 → 重新啟動 | `docker compose restart [service]` |
+| 更新服務 | 專案 → 選擇專案 → 建置 | `docker compose up -d --build` |
+| 查看資源 | 容器 → 點擊容器 → 資源監控 | `docker stats` |
+| 進入容器 | 容器 → 選擇容器 → 終端機 | `docker compose exec [service] sh` |
+
+**建議使用情境**：
+- ✅ **GUI**：查看日誌、監控資源使用、快速重啟服務
+- ✅ **CLI**：初始部署、更新設定檔、執行資料庫遷移、複雜操作
 
 #### 3.3 初始化資料庫
 
 ```bash
 # 執行資料庫遷移
-docker-compose exec backend npm run migrate
+docker compose exec backend npm run migrate
 
 # 掃描媒體檔案
-docker-compose exec backend npm run scan-media
+docker compose exec backend npm run scan-media
 ```
 
 ---
@@ -397,7 +461,7 @@ ALLOWED_EMAILS=user1@example.com,user2@example.com,newuser@example.com
 
 重啟服務：
 ```bash
-docker-compose restart backend
+docker compose restart backend
 ```
 
 ### Q2：Ramdisk 重開機後消失怎麼辦？
@@ -451,7 +515,7 @@ ls -lh /volume1/backups/
 
 恢復資料庫：
 ```bash
-docker-compose exec postgres psql -U media_user media_center < backup.sql
+docker compose exec postgres psql -U media_user media_center < backup.sql
 ```
 
 ---
