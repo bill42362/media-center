@@ -1,0 +1,57 @@
+version: '3.8'
+
+# Development environment for laptop
+# Connects to NAS services (PostgreSQL, Redis) over LAN
+# Frontend and backend run with hot reload
+
+services:
+  # Frontend (Vite dev server with HMR)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: media-frontend-dev
+    ports:
+      - "5173:5173"
+    volumes:
+      # Mount source code for hot reload
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:3000/graphql
+    command: npm run dev
+    networks:
+      - media-dev-network
+
+  # Backend (nodemon auto-reload)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: media-backend-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount source code for hot reload
+      - ./backend:/app
+      - /app/node_modules
+      # Mount media files (via SMB/NFS on host)
+      # Adjust this path to where you mounted NAS media
+      - ./storage/media:/app/media:ro
+    environment:
+      - NODE_ENV=development
+      # Connect to NAS PostgreSQL (update IP to your NAS)
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@192.168.50.100:5432/${POSTGRES_DB}
+      # Connect to NAS Redis
+      - REDIS_URL=redis://192.168.50.100:6379
+      - GRAPHQL_PLAYGROUND=true
+    env_file:
+      - .env.development
+    command: npm run dev
+    networks:
+      - media-dev-network
+
+networks:
+  media-dev-network:
+    driver: bridge

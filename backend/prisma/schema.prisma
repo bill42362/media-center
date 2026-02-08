@@ -1,0 +1,264 @@
+// Prisma Schema for Media Center
+// Based on docs/DATABASE.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========================================
+// Enums
+// ========================================
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum MediaType {
+  VIDEO
+  IMAGE
+  ARTICLE
+}
+
+enum TranscodeStatus {
+  PENDING
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum TranscodePriority {
+  HIGH  // 720p first transcode
+  LOW   // 1080p background transcode
+}
+
+enum Resolution {
+  R_480P  @map("480p")
+  R_720P  @map("720p")
+  R_1080P @map("1080p")
+}
+
+// ========================================
+// User & Authentication
+// ========================================
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  displayName  String?
+  role         UserRole @default(USER)
+  safeModeOnly Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  sessions       Session[]
+  favorites      Favorite[]
+  watchProgress  WatchProgress[]
+  watchHistory   WatchHistory[]
+
+  @@index([email])
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model OTP {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email, code])
+  @@index([expiresAt])
+}
+
+// ========================================
+// Media
+// ========================================
+
+model Media {
+  id          String   @id @default(uuid())
+  type        MediaType
+  title       String
+  filePath    String   @unique
+  fileSize    BigInt
+  duration    Int?     // in seconds, for videos
+  width       Int?
+  height      Int?
+  thumbnailPath String?
+
+  // Transcoding
+  transcoded       Boolean         @default(false)
+  transcodedPath   String?
+  transcodeStatus  TranscodeStatus @default(PENDING)
+
+  // Metadata
+  viewCount    Int       @default(0)
+  lastViewedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  tags           MediaTag[]
+  favorites      Favorite[]
+  watchProgress  WatchProgress[]
+  watchHistory   WatchHistory[]
+  transcodeJobs  TranscodeJob[]
+  transcodeCache TranscodeCache[]
+
+  @@index([type])
+  @@index([transcodeStatus])
+  @@index([filePath])
+  @@index([createdAt])
+}
+
+// ========================================
+// Tags
+// ========================================
+
+model Tag {
+  id        String   @id @default(uuid())
+  namespace String   // e.g., "author", "director", "mode", "language"
+  value     String   // e.g., "手塚治虫", "Ang Lee", "SFW"
+  createdAt DateTime @default(now())
+
+  // Relations
+  media MediaTag[]
+
+  @@unique([namespace, value])
+  @@index([namespace])
+}
+
+model MediaTag {
+  mediaId    String
+  tagId      String
+  assignedAt DateTime @default(now())
+
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([mediaId, tagId])
+  @@index([mediaId])
+  @@index([tagId])
+}
+
+// ========================================
+// User Features
+// ========================================
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  mediaId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mediaId])
+  @@index([userId])
+  @@index([mediaId])
+  @@index([createdAt])
+}
+
+model WatchProgress {
+  id              String   @id @default(uuid())
+  userId          String
+  mediaId         String
+  progressSeconds Int      @default(0)
+  completed       Boolean  @default(false)
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mediaId])
+  @@index([userId])
+  @@index([mediaId])
+  @@index([updatedAt])
+}
+
+model WatchHistory {
+  id             String    @id @default(uuid())
+  userId         String
+  mediaId        String
+  startedAt      DateTime  @default(now())
+  endedAt        DateTime?
+  watchedDuration Int      @default(0) // in seconds
+  startPosition  Int       @default(0)
+  endPosition    Int?
+  completed      Boolean   @default(false)
+
+  // Optional metadata
+  source     String?
+  ipAddress  String?
+  userAgent  String?
+
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedAt(sort: Desc)])
+  @@index([mediaId, startedAt(sort: Desc)])
+  @@index([userId, mediaId, startedAt(sort: Desc)])
+}
+
+// ========================================
+// Transcoding
+// ========================================
+
+model TranscodeJob {
+  id          String            @id @default(uuid())
+  mediaId     String
+  resolution  Resolution
+  priority    TranscodePriority @default(LOW)
+  status      TranscodeStatus   @default(PENDING)
+  progress    Int               @default(0) // 0-100
+  errorMessage String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime          @default(now())
+
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@index([mediaId])
+  @@index([status, priority(sort: Desc), createdAt])
+}
+
+model TranscodeCache {
+  id             String     @id @default(uuid())
+  mediaId        String
+  resolution     Resolution
+  cachePath      String     // Ramdisk path
+  sizeBytes      BigInt
+  lastAccessedAt DateTime   @updatedAt
+  createdAt      DateTime   @default(now())
+
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaId, resolution])
+  @@index([lastAccessedAt])
+}
