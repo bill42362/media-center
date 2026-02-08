@@ -92,18 +92,6 @@ services:
     networks:
       - media-network
 
-  # Frontend (Static files served by Node.js 'serve')
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: media-frontend
-    restart: unless-stopped
-    environment:
-      - NODE_ENV=production
-    networks:
-      - media-network
-
   # Caddy Reverse Proxy
   caddy:
     image: caddy:2-alpine
@@ -114,12 +102,12 @@ services:
       - "443:443"
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./frontend/dist:/srv/frontend:ro
       - ${TRANSCODED_PATH}:/srv/transcoded:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on:
       - backend
-      - frontend
     networks:
       - media-network
     environment:

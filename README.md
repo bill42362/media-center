@@ -102,6 +102,7 @@
 
 ### 部署
 - **Docker Compose** (服務編排)
+- **Caddy 2** (反向代理 + 靜態檔案服務)
 - **Synology NAS DS420+** (主伺服器)
 - **Ramdisk 6GB** (Redis + 影片快取)
 
@@ -138,12 +139,15 @@ cd backend
 npm install
 npx prisma generate
 
-# 安裝前端依賴
+# 安裝前端依賴並建置
 cd ../frontend
 npm install
+npm run build  # 建置前端靜態檔案到 dist/
 
 cd ..
 ```
+
+> **注意**：前端使用 **純 Client Side Rendering (CSR)**，`npm run build` 會產生靜態檔案到 `frontend/dist/`，然後由 Caddy 直接服務這些檔案。
 
 ### 2. 設定環境變數
 
@@ -305,17 +309,43 @@ sudo mkdir -p /volume1/media/images
 sudo mkdir -p /volume1/media/articles
 ```
 
-### 2. 上傳專案到 NAS
+### 2. 建置並上傳專案到 NAS
 
-從本機上傳：
+#### 方法一：在本機建置前端（推薦）
 
 ```bash
+# 在本機先建置前端
+cd frontend
+npm run build
+
+# 返回專案根目錄
+cd ..
+
 # 使用 rsync 上傳專案（排除 node_modules）
+rsync -avz --exclude 'node_modules' \
+  --exclude '.git' \
+  ./ admin@192.168.50.100:/volume1/docker/media-center/
+```
+
+#### 方法二：在 NAS 上建置前端
+
+```bash
+# 先上傳（排除 dist 和 node_modules）
 rsync -avz --exclude 'node_modules' \
   --exclude 'dist' \
   --exclude '.git' \
   ./ admin@192.168.50.100:/volume1/docker/media-center/
+
+# SSH 登入 NAS
+ssh admin@192.168.50.100
+cd /volume1/docker/media-center/frontend
+
+# 在 NAS 上建置前端（需要 Node.js 24.x）
+npm install
+npm run build
 ```
+
+> **建議**：使用方法一（本機建置），因為 NAS 的 CPU 較弱，建置速度較慢。
 
 ### 3. 在 NAS 上啟動服務
 
@@ -332,6 +362,9 @@ cd /volume1/docker/media-center
 # 複製並編輯環境變數
 cp .env.default .env
 vi .env  # 或使用 nano .env
+
+# 確認前端已建置（應該存在 frontend/dist/ 目錄）
+ls frontend/dist/index.html
 
 # 建置並啟動所有服務
 docker compose build
@@ -547,6 +580,21 @@ docker compose exec backend npx prisma migrate reset
 1. 確認後端已啟動：`docker compose ps`
 2. 確認 CORS 設定：檢查 `.env` 中的 `CORS_ORIGINS`
 3. 檢查前端環境變數：確認 `VITE_API_URL` 指向正確的後端 URL
+
+### Q7：更新前端程式碼後如何部署？
+
+前端使用純 CSR（Client Side Rendering），需要重新建置：
+
+```bash
+# 在本機或 NAS 上執行
+cd frontend
+npm run build
+
+# 如果是在本機，需要重新上傳 dist/
+rsync -avz ./dist/ admin@192.168.50.100:/volume1/docker/media-center/frontend/dist/
+
+# Caddy 會自動服務更新後的檔案（無需重啟）
+```
 
 ---
 

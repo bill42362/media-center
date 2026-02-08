@@ -14,11 +14,6 @@
         format json
     }
 
-    # Frontend - React SPA (reverse proxy to frontend container)
-    handle /* {
-        reverse_proxy frontend:3000
-    }
-
     # Backend GraphQL API
     handle /graphql* {
         reverse_proxy backend:3000
@@ -48,6 +43,14 @@
             # Cache control
             Cache-Control "public, max-age=3600"
         }
+    }
+
+    # Frontend - React SPA (serve static files with SPA fallback)
+    # Must be last to avoid intercepting API routes
+    handle /* {
+        root * /srv/frontend
+        try_files {path} /index.html
+        file_server
     }
 
     # Handle CORS preflight
