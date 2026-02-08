@@ -33,7 +33,7 @@
 | `transcode_jobs` | 轉碼任務 | media ← |
 | `transcode_cache` | Ramdisk 快取記錄 | media ← |
 
-### 第四階段（ComfyUI 整合）
+### 第五階段（ComfyUI 整合）
 
 | 資料表 | 用途 | 關聯 |
 |--------|------|------|
@@ -537,7 +537,7 @@ npx prisma migrate deploy
 
 ---
 
-## 第四階段擴展（ComfyUI）
+## 第五階段擴展（ComfyUI）
 
 ### 11. comfyui_workflows（ComfyUI 工作流）
 
