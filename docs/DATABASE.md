@@ -177,6 +177,13 @@
 - Unique 約束確保同一標籤只有一筆記錄
 - 標籤不可刪除（只能標記為 deprecated 或移除關聯）
 
+**查詢邏輯**（標籤可見性過濾）：
+- 標籤列表查詢需根據使用者權限過濾
+- **一般使用者**：僅返回「至少有一個 SFW 媒體」的標籤
+- **管理員**：返回所有標籤（包含僅用於 NSFW 的標籤）
+- 實作方式：JOIN `media_tags` → `media`，並檢查是否存在 `mode::SFW` 標籤
+- `mediaCount` 欄位需根據使用者可見的媒體數量動態計算
+
 ---
 
 ### 6. media_tags（媒體-標籤關聯）
@@ -505,6 +512,21 @@ transcode_cache {
 CREATE INDEX idx_media_tags_mode ON media_tags(tag_id)
 WHERE tag_id IN (SELECT id FROM tags WHERE namespace = 'mode');
 
+-- 標籤可見性過濾（加速標籤列表查詢）
+-- 用於快速找出所有 SFW 媒體的標籤
+CREATE INDEX idx_media_tags_sfw_visibility
+ON media_tags(tag_id, media_id)
+WHERE media_id IN (
+  SELECT media_id FROM media_tags mt
+  INNER JOIN tags t ON mt.tag_id = t.id
+  WHERE t.namespace = 'mode' AND t.value = 'SFW'
+);
+
+-- 或使用部分索引優化 mode 標籤查詢
+CREATE INDEX idx_tags_mode_namespace
+ON tags(namespace, value)
+WHERE namespace = 'mode';
+
 -- 使用者最愛列表
 CREATE INDEX idx_favorites_user_created ON favorites(user_id, created_at DESC);
 
@@ -529,6 +551,19 @@ CREATE INDEX idx_jobs_queue ON transcode_jobs(status, priority DESC, created_at)
   - `media_tags` 表建立雙向索引
   - 使用 PostgreSQL 的 GIN 索引（陣列欄位）
   - 考慮使用 Elasticsearch（未來擴展）
+
+### 2.1 標籤可見性過濾效能
+- **問題**：標籤列表需要過濾出有 SFW 媒體的標籤，涉及多次 JOIN 和子查詢
+- **解決**：
+  - 建立部分索引：`idx_tags_mode_namespace`（加速 mode::SFW 標籤查詢）
+  - 建立複合索引：`idx_media_tags_sfw_visibility`（加速標籤-媒體關聯查詢）
+  - 標籤列表查詢使用 Redis 快取（TTL: 5-10 分鐘）
+    - Key: `tags:list:{userId}:{namespace}`
+    - 標籤變更時清除相關快取
+  - 預估查詢時間（3000 部影片、300 個標籤）：
+    - 無索引：~100-200ms
+    - 有索引：~20-50ms
+    - 有快取：~1-5ms
 
 ### 3. Ramdisk 快取管理
 - **問題**：頻繁查詢 `last_accessed_at` 更新可能造成寫入瓶頸
